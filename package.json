@@ -2,6 +2,9 @@
   "name": "node_unit_testing",
   "version": "1.0.0",
   "main": "index.js",
+  
+  
+  
   "scripts": {
     "test": "cross-env NODE_ENV=development mocha \"./{,!(node_modules)/**/}*.test.js\" --exit",
     "test2": "mocha \"./tests/**/*.js\" --recursive",
@@ -15,7 +18,7 @@
     "cross-env": "^5.1.6",
     "istanbul": "^0.4.5",
     "mocha": "^7.1.2",
-    "nyc": "^15.0.1",
+    "nyc": "^15.1.0",
     "rewire": "^4.0.1",
     "sinon": "^5.0.10",
     "sinon-chai": "^3.5.0",
