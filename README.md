@@ -281,9 +281,9 @@ it("should do something", () => {
 ```
 
 ### E. Basics of Testing
-  1. Standard Functions<br>
+####    1. Standard Functions<br>
 
-    project/lib/demo.js
+    
 
     ```
     exports.add = function (a, b) {

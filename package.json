@@ -2,9 +2,6 @@
   "name": "node_unit_testing",
   "version": "1.0.0",
   "main": "index.js",
-  
-  
-  
   "scripts": {
     "test": "cross-env NODE_ENV=development mocha \"./{,!(node_modules)/**/}*.test.js\" --exit",
     "test2": "mocha \"./tests/**/*.js\" --recursive",
