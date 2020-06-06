@@ -502,7 +502,7 @@ exports.foo = () => {
 };
 
 ```
-demo.test.js
+demo.test.js - using Spy on console.log and warn
 
 ```
 const chai = require("chai");
@@ -531,4 +531,285 @@ context("test doubles", () => {
 
 ```
 
+
+### G. Code Isolation / Stubs
+
+a. One of the important part of unit testing is code isolation and stubs. For example there are functions which require saving in database and console something, we are do not have to actually save in database and pass that save. Therefore stubs is used. <br />
+b. So actual code is checked whether running or not but not executed.
+
+demo.js
+
+```
+//stub on warn
+exports.foo = () => {
+  //some operation
+  console.log("console.log was called");
+  console.warn("console.warn was called");
+
+  return;
+};
+
+```
+
+Eg1 - basic stub
+demo.test.js
+
+```
+it("should stub console warn", () => {
+   let stub = sinon.stub(console, "warn");// console.warn will not print, but test will pass
+   demo.foo();
+   expect(stub).to.have.been.calledOnce;
+});
+
+// console.warn was not called for stub
+
+```
+
+If we have used spy, console.warn will print - i.e. executed
+For stub - console.warn is checked but not printed (i.e. not executed,just tested) <br/> <br/>
+
+Eg2 - Sending my message instead of stubbed message function
+
+```
+it("should stub console warn", () => {
+      let stub = sinon.stub(console, "warn").callsFake(() => {
+        console.log("message from stub");       // use callsFake if want to replace with my message
+      });
+      demo.foo();
+      expect(stub).to.have.been.calledOnce;
+      stub.restore();	// this is mandatory to close for next stub or spy call
+});
+
+```
+
+Eg3 - To test whether we have stubbed function o/p
+
+```
+it("should stub console warn", () => {
+      let stub = sinon.stub(console, "warn").callsFake(() => {
+        console.log("message from stub");
+      });
+      demo.foo();
+      expect(stub).to.have.been.calledOnce;
+      expect(stub).to.have.been.calledWith("console.warn was called");  // this string should o/p of actual function we stubbed - 2 should not be there - above message is written in demo.js
+      stub.restore();
+
+});
+
+```
+
+### H. Rewire
+
+Rewire adds a special setter and getter to modules so you can modify their behaviour for better unit testing. You may<br>
+i. 	inject mocks for other modules or globals like process <br>
+ii.	inspect private variables <br>
+iii. override variables within the module. <br>
+
+Ref - https://github.com/jhnns/rewire 
+
+<br />
+Whenever there is call to private funtion (i.e. function without exports.functionname), inside a function, we use rewire to call it. <br/>
+
+TRICK <br/>
+a.	Load the rewire module <br />
+b.	Replace require with rewire for the file to test    <br />
+
+Eg.
+
+demo.js
+
+```
+//stub createfile
+exports.bar = async (fileName) => {
+  await exports.createFile(fileName);
+  let result = await callDB(fileName);	   // private function call – therefore use rewire
+  return result;
+};
+
+```
+
+demo.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
+chai.use(sinonChai);
+
+const rewire = require("rewire");
+
+var demo = rewire("./demo");		// replace require with rewire
+
+…
+…
+
+context("stub private functions with rewire", () => {
+    it("should stub createFile", async () => {
+      let createStub = sinon.stub(demo, "createFile").resolves("create_stub");
+      let callStub = sinon.stub().resolves("calldb_stub");
+
+      demo.__set__("callDB", callStub);
+      let result = await demo.bar("test.txt");
+
+      expect(result).to.equal("calldb_stub");
+      expect(createStub).to.be.calledOnce;
+      expect(createStub).to.have.been.calledWith("test.txt");
+      expect(callStub).to.be.calledOnce;
+    });
+  });
+
+```
+
+<b>Important Reminder</b>
+
+Please remember to use <b>var</b> instead of const when using rewire to import a module, it's easy to miss when you use const everything at the top of your code.<br>
+This is because rewire will inject the rewired versions, and we reset that during teardown. It's ok to use const on requiring rewire itself, but use var for everything else.<br><br>
+
+```
+const rewire = require('rewire');
+var myModule = rewire('../path/to/custom/module');
+```
+
+
+### H. Users.get()  (Fecthing Operation - MongoDB)
+
+a. 
+model/users.js (user model) - USER model
+
+```
+var mongoose = require('mongoose');
+
+var UserSchema = mongoose.Schema({
+    name: {type: String, required: true},
+    email: {type: String, required: true},
+    age: Number
+}, {
+    collection: 'users'
+}); //overrides default collection name auto created
+
+module.exports = mongoose.model('User', UserSchema);
+
+```
+
+users.js
+
+```
+exports.get = function (id, callback) {
+    if (!id) {      // Write test for this
+        return callback(new Error('Invalid user id'));
+    }
+
+    User.findById(id, function (err, result) {
+        if (err) {
+            return callback(err);
+        }
+
+        return callback(null, result);  // write test for this
+    });
+}
+
+
+```
+
+users.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
+chai.use(sinonChai);
+const rewire = require("rewire");
+
+var mongoose = require("mongoose");
+
+var users = require("./users");
+var User = require("./models/user");
+
+var sandbox = sinon.createSandbox();    // Create sandbox
+
+describe("users", () => {
+  let findStub;
+  let sampleArgs;
+  let sampleUser;
+
+  beforeEach(() => {
+    sampleUser = {
+      // this data should be similar to model schema data
+      id: 123,
+      name: "amir",
+      email: "amirengg15@gmail.com",
+      age: 27,
+    };
+
+    findStub = sandbox.stub(mongoose.Model, "findById").resolves(sampleUser);   // referncing mongoDB Fetch
+
+  });
+
+  afterEach(() => {
+    sandbox.restore(); // this equal to stub.restore();  but for sandbox version
+  });
+
+context("get", () => {			// call user.get
+    it("should check for an id", (done) => {        // test for unit 1
+      users.get(null, (err, result) => {
+        expect(err).to.exist;
+        expect(err.message).to.equal("Invalid user id"); // this err msg is exact same as in function testing
+        // expect(err.message).to.equal("Invalid user idasa"); // Err msg not same as function ==> fail test
+        done();
+      });
+    });
+
+
+    it("should call findUserById with id and return result", (done) => {    // test for unit 2
+      sandbox.restore();
+      let stub = sandbox
+        .stub(mongoose.Model, "findById")
+        .yields(null, { name: "amir" });	// 1st para = err if any, 2nd = data
+
+      users.get(123, (err, result) => {	// my id of object
+        expect(err).to.not.exist;
+        expect(stub).to.have.been.calledOnce;
+        expect(stub).to.have.been.calledWith(123);
+        expect(result).to.be.a("object");
+        expect(result).to.have.property("name").to.equal("amir");	// my object name
+
+        done();
+      });
+    });
+
+
+```
+
+Run mocha users.test <br/>
+
+b. Catch error if there is one
+
+```
+it("should catch error if there is one", (done) => {
+      sandbox.restore();
+
+      let stub = sandbox
+        .stub(mongoose.Model, "findById")
+        .yields(new Error("fake")); // think actual error is replaced by this from function
+
+      users.get(123, (err, result) => {
+        expect(result).to.not.exist;
+        expect(err).to.exist;
+        expect(err).to.be.instanceOf(Error);
+        expect(stub).to.have.been.calledWith(123);
+        expect(err.message).to.equal("fake");		  // test pass
+        // expect(err.message).to.equal("fakeasa");     // will show fail test as err msg above not matched
+
+        done();
+      });
+
+
+```
 
