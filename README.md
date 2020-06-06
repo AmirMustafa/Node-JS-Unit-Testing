@@ -4,6 +4,8 @@ Unit testing in Node Application using Mocha, Chai, Chai-as-promised, Stubs, Sin
 ## Installation
 npm install mocha -g
 npm install chai
+npm install cross-env
+npm i chai-as-promised
 
 ## Snippets
 
@@ -200,8 +202,281 @@ describe("chai test", () => {
 
 What ever name of the file is present eg. cart.js. For unit testing create cart.test.js.In this test page you will write node unit testing. <br>
 
-Now suppose you have many test pages, to run them all at once
+i. Now suppose you have many test pages, to run them all at once
 
-mocha <folder> --recursive
+mocha folder_to_test --recursive
 
 ``` mocha lib --recursive  ```
+
+ii. Search by Pattern:
+
+mocha ./lib/**/*.test.js		// executes all the .test.js files inside lib dir <br><br>
+Sometime it gives wrong result, therefore always put single quotes in path <br>
+mocha ‘./lib/**/*.test.js	‘	// executes all the .test.js files inside lib dir <br>
+only .test.js runs, all the .js file are left  <br>
+
+TRICK: In package.json file
+
+```
+{
+  "name": "node_unit_testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha './lib/**/*.test.js'"    // added test script
+  },
+  "author": "Amir Mustafa",
+  "license": "ISC",
+  "dependencies": {
+    "chai": "^4.2.0"
+  }
+}
+
+```
+
+Run ``` npm test ``` or``` npm run test ```
+
+
+### D. Envirinment Variable and cross-env
+
+pronting process.env.NODE_ENV   // prints undefined <br>
+
+So to read it ```npm install cross-env```
+
+In package json add this line
+
+```
+{
+  "name": "node_unit_testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "cross-env NODE_ENV=development mocha './lib/**/*.test.js'"     //this line
+  },
+  "author": "Amir Mustafa",
+  "license": "ISC",
+  "dependencies": {
+    "chai": "^4.2.0",
+    "cross-env": "^7.0.2"
+  }
+}
+
+```
+
+Now process.env file will test
+
+```
+it("should do something", () => {
+      assert.equal(1, 1);
+      // console.log("ENV: ", process.env.NODE_ENV);
+
+      if (process.env.NODE_ENV === "development") {     //detects env now
+        // run some variable here for testing
+        console.log("DEVELOPMENT MODE");    
+      }
+    });
+
+```
+
+### E. Basics of Testing
+####    1. Standard Functions<br>
+
+    project/lib/demo.js
+
+    ```
+    exports.add = function (a, b) {
+        return a + b
+    }
+
+    ```
+
+    project/lib/demo.test.js
+
+    ```
+    const chai = require("chai");
+    const expect = chai.expect;
+
+    var demo = require("./demo");
+
+    describe("demo", () => {
+    context("add", () => {
+        it("should add two numbers", () => {
+        expect(demo.add(1, 2)).to.equal(3);     // this line
+        });
+    });
+    });
+
+    ```
+
+####    2. Callback Functions<br>
+
+    demo.js
+
+    ```
+    exports.addCallback = function (a, b, callback) {
+        setTimeout(() => {
+            return callback(null, a + b);
+        }, 500);
+    };
+
+    ```
+
+    demo.test.js
+
+    ```
+        const chai = require("chai");
+        const expect = chai.expect;
+
+        var demo = require("./demo");
+
+        describe("demo", () => {
+        context("callback add", () => {
+            it("should test the callback", (done) => {	// Parameter added
+            demo.addCallback(1, 2, (err, result) => {     // this line
+                expect(err).to.not.exist;
+                expect(result).to.equal(3);
+                done(); // must for callback
+            });
+            });
+        });
+        });
+
+    ```
+
+    ####    3. Promises<br>
+
+    demo.js
+
+    ```
+        exports.addPromise = function (a, b) {
+        // return Promise.reject(new Error('fake'))
+        return Promise.resolve(a + b);
+        };
+
+    ```
+
+    demo.test.js
+
+    ```
+        context("test promise", () => {
+        it("should add with the promise callback", (done) => {
+        demo.addPromise(1, 2).then((result) => {
+            expect(result).to.equal(3);
+            done();
+        });
+        });
+    });
+    ```
+
+  ####    4. Catch errors if any<br>
+
+    demo.js
+
+    ```
+        exports.addPromise = function (a, b) {
+        // return Promise.reject(new Error('fake'))
+        return Promise.resolve(a + b);
+        };
+
+    ```
+
+    demo.test.js
+
+   ```
+    context("test promise", () => {
+    it("should add with the promise callback", (done) => {
+      demo
+        .addPromise(1, 2)
+        .then((result) => {
+          expect(result).to.equal(3);
+          done();
+        })
+        .catch((err) => {
+          console.log("caught error");
+          done(err);
+        });
+    });
+  });
+
+
+   ```
+
+####  5. Using return style
+
+```
+context("test promise", () => {
+    // it("should add with the promise callback", (done) => {
+    //   demo
+    //     .addPromise(1, 2)
+    //     .then((result) => {
+    //       expect(result).to.equal(3);
+    //       done();
+    //     })
+    //     .catch((err) => {
+    //       console.log("caught error");
+    //       done(err);
+    //     });
+    // });
+
+    it("should test promise with return", () => {
+      return demo.addPromise(1, 2).then((result) => {
+        expect(result).to.be.equal(3);
+      });
+    });
+  });
+
+
+```
+
+NOTE: No need to write any catch for errors, return auto detects and throws like catch
+
+#### 6. Calling promise by async await
+
+demo.js
+
+```
+exports.addPromise = function (a, b) {
+  // return Promise.reject(new Error('fake'))
+  return Promise.resolve(a + b);
+};
+
+```
+
+demo.test.js
+
+```
+it("should test promise with async await", async () => {
+   let result = await demo.addPromise(1, 2);
+   expect(result).to.equal(3);
+});
+
+
+```
+
+#### 7.  Calling by chai plugin – chai-as-promised
+
+This make calling promised function easly in one line<br><br> 
+
+STEP1: ```npm i chai-as-promised```
+
+demo.test.js
+
+```
+    const chai = require("chai");
+const expect = chai.expect;
+const chaiAsPromised = require("chai-as-promised");
+
+chai.use(chaiAsPromised);
+
+var demo = require("./demo");
+
+…
+…
+
+it("should test promise with chai-as-promised", async () => {
+     await expect(demo.addPromise(1, 2)).to.eventually.equal(3);
+});
+
+```
