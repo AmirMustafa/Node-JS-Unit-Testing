@@ -202,13 +202,13 @@ describe("chai test", () => {
 
 What ever name of the file is present eg. cart.js. For unit testing create cart.test.js.In this test page you will write node unit testing. <br>
 
-i. Now suppose you have many test pages, to run them all at once
+<b>i. Now suppose you have many test pages, to run them all at once </b>
 
 mocha folder_to_test --recursive
 
 ``` mocha lib --recursive  ```
 
-ii. Search by Pattern:
+<b>ii. Search by Pattern: </b>
 
 mocha ./lib/**/*.test.js		// executes all the .test.js files inside lib dir <br><br>
 Sometime it gives wrong result, therefore always put single quotes in path <br>
