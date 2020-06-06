@@ -2,10 +2,10 @@
 Unit testing in Node Application using Mocha, Chai, Chai-as-promised, Stubs, Sinon, Rewire, Istanbul/NYC,Test Driven Development
 
 ## Installation
-npm install mocha -g
-npm install chai
-npm install cross-env
-npm i chai-as-promised
+npm install mocha -g    <br>
+npm install chai    <br>
+npm install cross-env   <br>
+npm i chai-as-promised <br>
 
 ## Snippets
 
@@ -283,7 +283,7 @@ it("should do something", () => {
 ### E. Basics of Testing
 ####    1. Standard Functions<br>
 
-    
+    project/lib/demo.js
 
     ```
     exports.add = function (a, b) {
@@ -464,7 +464,7 @@ STEP1: ```npm i chai-as-promised```
 demo.test.js
 
 ```
-    const chai = require("chai");
+const chai = require("chai");
 const expect = chai.expect;
 const chaiAsPromised = require("chai-as-promised");
 
@@ -476,7 +476,7 @@ var demo = require("./demo");
 …
 
 it("should test promise with chai-as-promised", async () => {
-     await expect(demo.addPromise(1, 2)).to.eventually.equal(3);
+     await expect(demo.addPromise(1, 2)).to.eventually.equal(3);    // this runs in 1 line
 });
 
 ```
