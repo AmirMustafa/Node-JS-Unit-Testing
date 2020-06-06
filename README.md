@@ -1055,3 +1055,268 @@ users.test.js
 Run - mocha users.test.js
 
 ### J. Mailer
+
+Eg 1 - function 1
+
+mailer.js
+
+```
+exports.sendWelcomeEmail = function (email, name) {
+  // console.log('--- in mailer > sendWelcomeEmail');
+  if (!email || !name) {
+    return Promise.reject(new Error("Invalid input")); // write test for this
+  }
+
+  var body = `Dear ${name}, welcome to our family!`; //write test for this
+
+  return sendEmail(email, body);
+};
+
+```
+
+mailer.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
+chai.use(sinonChai);
+const rewire = require("rewire");
+
+var sandbox = sinon.sandbox.create();
+var mailer = rewire("./mailer");
+
+describe("mailer", () => {
+  let emailStub;
+
+  beforeEach(() => {
+    emailStub = sandbox.stub().resolves("done");
+    mailer.__set__("sendEmail", emailStub);
+  });
+
+  afterEach(() => {
+    sandbox.restore();		
+    mailer = rewire("./mailer");   // mandatory test
+  });
+
+  ///////////// Send Welcome Email //////////////
+
+  context("sendWelcomeEmail", () => {
+    // rejected mail test
+    it("should check for email and name", async () => {
+      await expect(mailer.sendWelcomeEmail()).to.eventually.be.rejectedWith(
+        "Invalid input"
+      );
+
+      await expect(
+        mailer.sendWelcomeEmail("amirengg15@gmail.com")
+      ).to.eventually.be.rejectedWith("Invalid input");	// Expects two parameters
+    });
+
+    // return with email and password test
+    it("should call sendEmail with email and password", async () => {
+      mailer.sendWelcomeEmail("amirengg15@gmail.com", "Amir");
+
+      expect(emailStub).to.have.been.calledWith(
+        "amirengg15@gmail.com",
+        "Dear Amir, welcome to our family!"		// Return message from mailer.js
+      );
+    });
+  });
+});
+
+```
+
+Eg2 - Test reset email - function 2
+
+mailer.js
+
+```
+exports.sendPasswordResetEmail = function (email) {
+  // console.log('--- in mailer > sendPasswordResetEmail');
+  if (!email) {
+    return Promise.reject(new Error("Invalid input"));
+  }
+
+  var body = "Please click http://some_link to reset your password.";
+
+  return sendEmail(email, body);
+};
+
+```
+
+mailer.test.js
+
+```
+///////////// Send Password Reset Email //////////////
+
+  context("sendPasswordResetEmail", () => {
+    // rejected mail test
+    it("should check for email", async () => {
+      await expect(
+        mailer.sendPasswordResetEmail()	// empty email send – throw error
+      ).to.eventually.be.rejectedWith("Invalid input");		// from sinon chai
+    });
+
+    // return with email and password test
+    it("should call sendEmail with email and password", async () => {
+      mailer.sendPasswordResetEmail("amirengg15@gmail.com");
+
+      expect(emailStub).to.have.been.calledWith(
+        "amirengg15@gmail.com",
+        "Please click http://some_link to reset your password."
+      );
+    });
+  });
+
+```
+
+Eg 3 - sendMail function - private function (this is the private function as no export is written – using reqire __get__)
+
+```
+function sendEmail(email, body) {
+  // console.log('--- in mailer > sendEmail');
+  if (!email || !body) {
+    return Promise.reject(new Error("Invalid input")); // write test for this
+  }
+
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      console.log("Email Sent!");
+      // return reject(new Error('Fake Error'));
+      return resolve("Email sent"); // write test for this
+    }, 100);
+  });
+}
+
+```
+
+mailer.test.js
+
+```
+///////////// Send Email //////////////
+
+  context("sendEmail", () => {
+    let sendEmail;
+
+    beforeEach(() => {
+      mailer = rewire("./mailer");
+      sendEmail = mailer.__get__("sendEmail"); // we are rewiring it because this is the private function
+    });
+
+    // Test 1
+    it("should check for email and body", async () => {
+      await expect(sendEmail()).to.eventually.be.rejectedWith("Invalid input");
+      await expect(
+        sendEmail("amirengg15@gmail.com")
+      ).to.eventually.be.rejectedWith("Invalid input");
+    });
+
+    // Test 2
+    it("should should call sendEmail with email and password", async () => {
+      // stub actual mailer
+      let result = await sendEmail("amirengg15@gmail.com", "welcome");
+      expect(result).to.equal("Email sent");
+    });
+  });
+
+```
+
+### K. utils
+
+utils.js
+
+```
+const crypto = require("crypto");
+
+const config = require("./config");
+
+//foo = 1f0c01e25707f55ed3014d60bd0d0373
+exports.getHash = function (string) {
+  if (!string || typeof string !== "string") return null; // write test for this
+
+  string += "_" + config.secret(); // write test to get secret
+
+  var hash = crypto.createHash("md5").update(string).digest("hex");  // write test for this 
+      								   // chain individually
+  // console.log('Hash: ' , hash);
+
+  return hash; // write test to get hash
+};
+
+```
+
+utils.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
+chai.use(sinonChai);
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+
+var crypto = require("crypto");
+
+var config = require("./config");
+var utils = require("./utils");
+
+var sandbox = sinon.sandbox.create();
+
+describe("utils", () => {
+  let secretStub, digestStub, updateStub, createHashStub, hash;
+
+  beforeEach(() => {
+    secretStub = sandbox.stub(config, "secret").returns("fake_secret");
+    digestStub = sandbox.stub().returns("ABC123");
+
+    updateStub = sandbox.stub().returns({
+      digest: digestStub,
+    });
+
+    createHashStub = sandbox.stub(crypto, "createHash").returns({
+      update: updateStub,
+    });
+
+    hash = utils.getHash("hashtest");		// can be any name , just below append in test result
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it("should return null if invalid string is passed", () => {
+    sandbox.reset(); // sometimes sandbox.restore() do not work use reset
+
+    // rejection case test
+    let hash2 = utils.getHash(null);
+    let hash3 = utils.getHash(123);
+    let hash4 = utils.getHash({ name: "bar" });
+
+    expect(hash2).to.be.null;
+    expect(hash3).to.be.null;
+    expect(hash4).to.be.null;
+
+    expect(createHashStub).to.not.have.been.called;
+  });
+
+  // test to get secret key from config
+  it("should get secret from config", () => {
+    expect(secretStub).to.have.been.calledOnce;
+  });
+
+  // test to get correct hash
+  it("should call crypto with correct settings abd return hash", () => {
+    expect(createHashStub).to.have.been.calledWith("md5");
+    expect(updateStub).to.have.been.calledWith("hashtest_fake_secret");
+    expect(digestStub).to.have.been.calledWith("hex");
+    expect(hash).to.equal("ABC123");
+  });
+});
+
+
+```
