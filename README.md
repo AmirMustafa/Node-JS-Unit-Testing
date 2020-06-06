@@ -675,7 +675,7 @@ var myModule = rewire('../path/to/custom/module');
 ```
 
 
-### H. Users.get()  (Fecthing Operation - MongoDB)
+### H a. Users.get()  (Fecthing Operation - MongoDB)
 
 a. 
 model/users.js (user model) - USER model
@@ -789,7 +789,7 @@ context("get", () => {			// call user.get
 
 Run mocha users.test <br/>
 
-b. Catch error if there is one
+Catch error if there is one
 
 ```
 it("should catch error if there is one", (done) => {
@@ -813,3 +813,245 @@ it("should catch error if there is one", (done) => {
 
 ```
 
+### H b. Users.delete()  (Delete Operation - MongoDB)
+
+    users.js
+
+    ```
+    exports.delete = function (id) {
+        // return Promise.resolve()
+        if (!id) {
+            return Promise.reject(new Error('Invalid id'));
+        }
+
+        return User.remove({
+            _id: id
+        });
+    }
+
+    ```
+
+    users.test.js
+
+    ```
+    context("delete user", () => {
+
+        // 1st way of writing shorter test
+        it("should check for an id using return", () => {
+            return users
+                .delete()
+                .then((result) => {
+                throw new Error("unexpected success");
+                })
+                .catch((ex) => {
+                expect(ex).to.be.instanceOf(Error);
+                expect(ex.message).to.equal("Invalid id");
+                });
+            });
+
+            // 2nd way of writing shorter test - sinonChai plugin
+            it("should check for an error using eventually", () => {
+            return expect(users.delete()).to.eventually.be.rejectedWith("Invalid id");
+            });
+    });
+
+    ```
+
+    ### H c. Users.create()  (Delete Operation - MongoDB)
+
+    Eg 1 <br>
+
+    ```
+    const rewire = require("rewire");
+
+    var mongoose = require("mongoose");
+
+    var users = rewire("./users");
+    var User = require("./models/user");
+    var mailer = require("./mailer");
+
+    describe("users", () => {
+    let findStub;
+    let deleteStub;
+    let sampleArgs;
+    let sampleUser;
+
+    beforeEach(() => {
+        sampleUser = {
+        // this data should be similar to model schema data
+        id: 123,
+        name: "amir",
+        email: "amirengg15@gmail.com",
+        age: 27,
+        };
+
+        findStub = sandbox.stub(mongoose.Model, "findById").resolves(sampleUser);
+        deleteStub = sandbox
+        .stub(mongoose.Model, "remove")
+        .resolves("fake_remove_result");
+
+        mailerStub = sandbox
+        .stub(mailer, "sendWelcomeEmail")
+        .resolves("fake_email");
+    });
+
+    afterEach(() => {
+        sandbox.restore(); // this equal to stub.restore();  but for sandbox version
+        users = rewire("./users");
+    });
+
+    context("create user", () => {
+        let FakeUserClass, saveStub, result;
+
+        beforeEach(async () => {
+        saveStub = sandbox.stub().resolves(sampleUser);		// creating stub
+        FakeUserClass = sandbox.stub().returns({ save: saveStub }); // save is the name of function class uses - for this rewire is used above
+
+        users.__set__("User", FakeUserClass);
+        result = await users.create(sampleUser);		// TEST SAVE PASS CASE
+        });
+
+        it("should reject invalid args", async () => {	// TEST SAVE ERROR CASES
+        await expect(users.create()).to.eventually.be.rejectedWith(
+            "Invalid arguments"
+        );
+
+        await expect(
+            users.create({ name: "amir" })
+        ).to.eventually.be.rejectedWith("Invalid arguments");
+
+        await expect(
+            users.create({ email: "amirengg15@gmail.com" })
+        ).to.eventually.be.rejectedWith("Invalid arguments");
+        });
+
+        it("should call user with new", () => {	// TEST FOR CORRECT OBJECT CALLED
+        expect(FakeUserClass).to.have.been.calledWithNew;
+        expect(FakeUserClass).to.have.been.calledWith(sampleUser);
+        });
+    });
+    });
+
+    ```
+
+    Eg 2 <br>
+
+    ```
+    it("should save the user", () => {
+        expect(saveStub).to.have.been.called;
+        });
+
+        it("should call mailer with email and name", () => {
+        expect(mailerStub).to.have.been.calledWith(
+            sampleUser.email,
+            sampleUser.name
+        ); // these parameter is expected in
+            });
+
+            it("should reject errors", async () => {
+            saveStub.rejects(new Error("fake"));
+
+            await expect(users.create(sampleUser)).to.eventually.be.rejectedWith(
+                "fake"
+            );
+            });
+
+    ```
+
+
+### H d. Users.update()  (Delete Operation - MongoDB)
+
+users.js
+
+```
+exports.update = async function (id, data) {
+  try {
+    var user = await User.findById(id); // Write test for this
+
+    for (var prop in data) {
+      user[prop] = data[prop];
+    }
+
+    var result = await user.save(); // write test for this
+
+    return result;
+  } catch (err) {
+    // console.warn(err);
+    return Promise.reject(err); // one test for rejection
+  }
+};
+
+```
+
+users.test.js
+
+```
+///////////// users.update //////////////
+  context("update user", () => {
+    it("should find user by id", async () => {
+      await users.update(123, { age: 35 });
+
+      expect(findStub).to.have.been.calledWith(123);		// find stub called
+    });
+
+    it("should call user.save", async () => {
+      await users.update(123, { age: 35 });
+
+      expect(sampleUser.save).to.have.been.calledOnce;	// sampleUser.save called
+    });
+
+    it("should reject if there is an error", async () => {
+      findStub.throws(new Error("fake")); // forcefully throws error to check error case
+
+      await expect(
+        users.update(123, { age: 35 })
+      ).to.eventually.be.rejectedWith("fakeasa");
+    });
+  });
+
+```
+
+### I. Reset Password  (MongoDB)
+
+users.js
+
+```
+exports.resetPassword = function (email) {
+  if (!email) {
+    return Promise.reject(new Error("Invalid email")); // write test for this
+  }
+
+  //some operations
+
+  return mailer.sendPasswordResetEmail(email); // write test for this
+};
+
+```
+
+users.test.js
+
+```
+///////////// reset password //////////////
+  context("reset password", () => {
+    let resetStub;
+    beforeEach(() => {
+      resetStub = sandbox.stub(mailer, "sendPasswordResetEmail").resolves("email");
+    });
+
+    it("should check for email", async () => {
+      await expect(users.resetPassword()).to.eventually.be.rejectedWith(
+        "Invalid email"
+      );	// no arguments passed inside resetPassword() , therefore error
+    });
+
+    it("should call sendPasswordResetEmail", async () => {
+      await users.resetPassword("amirengg15@gmail.com"); // testing email, export.resetPassword called
+      expect(resetStub).to.have.been.calledWith("amirengg15@gmail.com"); //expected email = should be same as above
+    });
+  });
+
+```
+
+Run - mocha users.test.js
+
+### J. Mailer
