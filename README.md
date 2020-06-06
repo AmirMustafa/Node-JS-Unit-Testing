@@ -480,3 +480,55 @@ it("should test promise with chai-as-promised", async () => {
 });
 
 ```
+
+### F. Sinon
+
+Sinon helps eliminate complexity in tests by allowing you to easily create so called test-doubles.<br />
+
+Test-doubles are, like the name suggests, replacements for pieces of code used in your tests. Looking back at the Ajax example, instead of setting up a server, we would replace the Ajax call with a test-double. With the time example, we would use test-doubles to allow us to “travel forwards in time”.<br />
+
+Test doubles are like functions we can inject into our programs from spies or stubs, they will let us know what is happening behind the scene.<br /><br />
+
+demo.js
+
+```
+//spy on log
+exports.foo = () => {
+  //some operation
+  console.log("console.log was called");
+  console.warn("console.warn was called");
+
+  return;
+};
+
+```
+demo.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+
+const sinon = require("sinon");			        // for way 1
+const sinonChai = require("sinon-chai");		//for way 2
+chai.use(sinonChai);		                    //way 2
+
+var demo = require("./demo");
+
+…
+…
+context("test doubles", () => {
+    it("should spy on log", () => {
+      let spy = sinon.spy(console, "log");
+      demo.foo();
+
+      expect(spy.calledOnce).to.be.true;   // way 1 using sinon
+      expect(spy).to.have.been.calledOnce; // way 2 using sinon-chai, (both are same)
+      spy.restore();
+    });
+  });
+
+```
+
+
