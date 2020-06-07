@@ -2,10 +2,11 @@
 Unit testing in Node Application using Mocha, Chai, Chai-as-promised, Stubs, Sinon, Rewire, Istanbul/NYC,Test Driven Development
 
 ## Installation
-npm install mocha -g    <br>
-npm install chai    <br>
-npm install cross-env   <br>
-npm i chai-as-promised <br>
+npm install mocha -g    (Node's Unit Testing library)<br>
+npm install chai    (Assertion library)<br>
+npm install cross-env   (Handle Environment variables)<br>
+npm i chai-as-promised (Handle promises in lesser codes)<br>
+npm i supertest    (Handle routes in unit testing) <br>
 
 ## Snippets
 
@@ -1318,5 +1319,277 @@ describe("utils", () => {
   });
 });
 
+
+```
+
+### L Routes
+
+--> For handeling routes in Node, we use package called supertest <br/>
+
+npm i supertest
+
+### L > A. GET / Route
+
+app.js
+
+```
+const express = require('express');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const app = express();
+
+const db = require('../config/database');
+const users = require('./users');
+const auth = require('./auth');
+
+mongoose.connect(db());
+
+app.use(bodyParser.urlencoded({
+    extended: true
+}));
+
+app.use(bodyParser.json());
+
+//--------------------------------------> routes
+app.get('/', (req, res) => {
+    res.status(200).json({
+        name: 'Foo Fooing Bar'
+    });
+});
+
+```
+
+app.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
+chai.use(sinonChai);
+const rewire = require("rewire");
+const request = require("supertest");     // Mandatory library for routing - Supertest
+
+var app = rewire("./app");
+var users = require("./users");
+var auth = require("./auth");
+var sandbox = sinon.sandbox.create();		// Create Sandbox
+
+describe("app", () => {
+  afterEach(() => {
+    app = rewire("./app");
+    sandbox.restore();			// basic for working with sinon/stubs properly
+  });
+
+  context("GET /", () =>{
+      it("should get /", (done) =>{
+        request(app).get("/")			// functionality provided by supertest
+            .expect(200)
+            .end((err, response) =>{
+                expect(response.body).to.have.property("name").to.equal("Foo Fooing Bar");
+                done(err);
+            })
+      })
+  });
+});
+
+```
+
+Run - mocha app.test.js --exit (exit flag is required otherwise, it will go on testing without stopping)
+
+### L > B. POST / Route
+
+app.js
+
+```
+app.post('/user', function (req, res) {
+    users.create(req.body).then((result) => {   // write test for this
+        res.json(result);
+    }).catch((err) => {
+        handleError(res, err);	// write test for this
+    });
+});
+
+```
+
+app.test.js
+
+```
+ ////////// Route 2 Test - POST / ///////////////////
+  context("POST /user", () =>{
+      let createStub, errorStub;
+      it("should call user.create", (done) =>{
+      
+      // think this to be returned from actual function
+        createStub = sandbox.stub(users, "create").resolves({name: "foo"}); 
+        
+        request(app).post("/user")
+            .send({name: "fake"})   // way to send data in post route
+            .expect(200)
+            .end((err, response) => {
+                expect(createStub).to.have.been.calledOnce;
+                expect(response.body).to.have.property("name").to.equal("foo"); // should match line 38
+                done(err);
+            })
+      })
+  });
+
+```
+
+Eg 2 -
+
+```
+// test for handeling err
+
+      it("should call handleError on error", (done) =>{
+        createStub = sandbox.stub(users, "create").rejects(new Error("fake error"));
+
+        errorStub = sandbox.stub().callsFake((res, err) => {
+          return res.status(400).json({error: "fake"}); // Stubbed o/p
+        });
+
+        app.__set__("handleError", errorStub);
+
+        request(app).post("/user")
+          .send({ name: "fake" })
+          .expect(400)
+          .end((error, response) => {
+            expect(createStub).to.have.been.calledOnce;
+            expect(errorStub).to.have.been.calledOnce;
+            expect(response.body).to.have.property("error").to.equal("fake");   // must be same as line 54
+            done(error);
+          });
+      });
+
+
+```
+
+Run - mocha app.test.js --exit
+
+
+### L > C. DELETE / Route
+
+Auth.js (middleware)
+
+```
+exports.isAuthorized = function (req, res, next) {
+    if (req.headers.authorization === 'foo') {
+        return next()
+    }
+
+    return res.json({
+        error: 'Unauthorized'
+    });
+}
+
+```
+
+app.js (route to test)
+
+```
+app.delete('/user/:id', auth.isAuthorized, function (req, res) {
+    users.delete({id: req.params.id, name: 'foo'}).then((result) => {
+        res.json(result);
+    }).catch((err) => {
+        handleError(res, err);
+    });
+});
+
+```
+
+app.test.js
+
+```
+context("DELETE /user/:id", () =>{
+    let authStub, deleteStub;
+
+    beforeEach(() => {
+      fakeAuth = (req, res, next) => {
+        return next();
+      }
+
+      authStub = sandbox.stub(auth, "isAuthorized").callsFake(fakeAuth);	// WAY TO STUB MIDDLEWARE
+
+      app = rewire("./app");
+    });
+
+    it("should call auth check function and users.delete on success", (done) => {
+      deleteStub = sandbox.stub(users, 'delete').resolves("fake_delete");  // stubbed original and expect fake_delete
+
+      request(app).delete("/user/123")   // Passing the ID here
+        .expect(200)
+        .end((err, response) => {
+          expect(authStub).to.have.been.calledOnce;
+          expect(deleteStub).to.have.been.calledWithMatch({id: "123"}); // callWithMatch matches property in obj data
+          expect(response.body).to.equal("fake_delete");
+          done(err);
+        })
+    });
+
+  });
+
+```
+
+### M Way to test model
+
+user.js
+path - Model/user.js
+
+```
+var mongoose = require('mongoose');
+
+var UserSchema = mongoose.Schema({
+    name: {type: String, required: true},
+    email: {type: String, required: true},
+    age: Number
+}, {
+    collection: 'users'
+}); //overrides default collection name auto created
+
+module.exports = mongoose.model('User', UserSchema);
+
+```
+
+user.test.js
+path - model/user.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+
+var User = require("./user");		// model included
+
+describe("User model", () => {
+    it("should return error in required areas are missing", (done) => { // when name or email field is missing
+        let user = new User();			 // err as no data obj passed
+
+        user.validate((err) => {                    // this is mongodb default functions
+            expect(err.errors.name).to.exist;
+            expect(err.errors.email).to.exist;
+            expect(err.errors.age).to.not.exist;    // optional field
+
+            done();
+
+        });
+    })
+});
+
+```
+
+Eg2 - user.test.js
+
+```
+it("should have optional age field", (done) => {
+        let user = new User({
+            name: "foo",
+            email: "foo@gmail.com",
+            age: 27
+        });
+
+        expect(user).to.have.property("age").to.equal(27);
+        done();
+});
 
 ```
