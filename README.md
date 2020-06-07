@@ -1893,7 +1893,7 @@ it("should update status to shipped 'prototyope method'", () => {
 --> So now we know to how to unit testing for class works, so if anybody changes class, unit testing will fail and we know before hand.
 
 
-### O. Test Covergae with Istanbul / NYC
+### O. Test Coverage with Istanbul / NYC
 
 i. npm i nyc --save-dev
 
