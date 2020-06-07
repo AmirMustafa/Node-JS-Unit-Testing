@@ -1,5 +1,5 @@
 # Node-JS-Unit-Testing
-Unit testing in Node Application using Mocha, Chai, Chai-as-promised, Stubs, Sinon, Rewire, Test Driven Development, Test Coverage with Istanbul/NYC
+Unit testing in Node Application using Mocha, Chai, Chai-as-promised, Stubs, Sinon, Rewire, Test Driven Development, Test Coverage with Istanbul/NYC.
 
 ## Installation
 npm install mocha -g    (Node's Unit Testing library)<br>
