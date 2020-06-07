@@ -1593,3 +1593,322 @@ it("should have optional age field", (done) => {
 });
 
 ```
+
+### N. Way to test Classes
+
+order.js  (Class to test)
+
+```
+class Order {
+    constructor(ref, user, items) {
+        this.ref = ref;
+        this.user = user;
+        this.items = items;
+        this.status = 'Pending';
+        this.createdAt = Date.now();
+        this.updatedAt = Date.now();
+        this.subtotal = 0;
+
+        for (let item of items) {
+            // console.log(item)
+            this.subtotal += item.price
+        }
+
+        if (this.subtotal <= 50) {
+            this.shipping = 5;
+        } else {
+            this.shipping = 10;
+        }
+
+        this.total = this.subtotal + this.shipping;
+    }
+
+    save() {
+        //..some logic..
+
+        this.status = 'Active';
+        this.updatedAt = Date.now();
+
+        let o = {
+            ref: this.ref,
+            user: this.user.name,
+            updatedAt: this.updatedAt,
+            status: this.status,
+            items: this.items,
+            shipping: this.shipping,
+            total: this.total,
+        }
+
+        return o;
+    }
+
+    cancel() {
+        //...some logic...
+
+        this.status = 'Cancelled';
+        this.updatedAt = Date.now();
+        this.shipping = 0;
+        this.total = 0;
+
+        console.warn('Order cancelled');
+
+        return true;
+    }
+}
+
+Order.prototype.ship = function () {
+    this.status = 'Shipped';
+    this.updatedAt = Date.now();
+}
+
+module.exports = Order;
+
+```
+
+order.test.js
+
+```
+class Order {
+    constructor(ref, user, items) {
+        this.ref = ref;
+        this.user = user;
+        this.items = items;
+        this.status = 'Pending';
+        this.createdAt = Date.now();
+        this.updatedAt = Date.now();
+        this.subtotal = 0;
+
+        for (let item of items) {
+            // console.log(item)
+            this.subtotal += item.price
+        }
+
+        if (this.subtotal <= 50) {
+            this.shipping = 5;
+        } else {
+            this.shipping = 10;
+        }
+
+        this.total = this.subtotal + this.shipping;
+    }
+
+    save() {
+        //..some logic..
+
+        this.status = 'Active';
+        this.updatedAt = Date.now();
+
+        let o = {
+            ref: this.ref,
+            user: this.user.name,
+            updatedAt: this.updatedAt,
+            status: this.status,
+            items: this.items,
+            shipping: this.shipping,
+            total: this.total,
+        }
+
+        return o;
+    }
+
+    cancel() {
+        //...some logic...
+
+        this.status = 'Cancelled';
+        this.updatedAt = Date.now();
+        this.shipping = 0;
+        this.total = 0;
+
+        console.warn('Order cancelled');
+
+        return true;
+    }
+}
+
+Order.prototype.ship = function () {
+    this.status = 'Shipped';
+    this.updatedAt = Date.now();
+}
+
+module.exports = Order;
+
+```
+
+order.test.js
+
+```
+const chai = require("chai");
+const expect = chai.expect;
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
+chai.use(sinonChai);
+
+var Order = require("./order");
+var sandbox = sinon.sandbox.create();
+
+describe("order", () => {
+    let warnStub, dateSpy, user, items, o;
+
+    beforeEach(() => {
+        warnStub = sandbox.stub(console, "warn");
+        dateSpy = sandbox.spy(Date, 'now');
+
+        user = { id: 1, name: "foo" };
+
+        items = [
+            { name: "Book", price: 10 },
+            { name: "Dice set", price: 5 }
+        ];
+
+        o = new Order(123, user, items);
+    });
+
+    afterEach(() => {
+        sandbox.restore();
+    });
+
+    it("should create instance or Order and calculate total + shipping", () => {
+        expect(o).to.be.instanceOf(Order);
+        expect(dateSpy).to.have.been.calledTwice;
+        expect(o).to.have.property("ref").to.equal(123);// these tests are written as per 
+        expect(o).to.have.property("user").to.deep.equal(user);	// Way to check property
+        expect(o).to.have.property("items").to.deep.equal(items);
+        expect(o).to.have.property("status").to.equal("Pending");
+        expect(o).to.have.property("createdAt").to.be.a("Number");
+        expect(o).to.have.property("updatedAt").to.be.a("Number");
+        expect(o).to.have.property("subtotal").to.equal(15);
+        expect(o).to.have.property("shipping").to.equal(5);
+        expect(o).to.have.property("total").to.equal(20);
+
+        expect(o.save).to.be.a("function");
+        expect(o.cancel).to.be.a("function");
+        expect(o.ship).to.be.a("function");
+
+    })
+});
+
+```
+
+Eg2 - Testing save() function
+
+order.test.js
+
+```
+save() {
+        //..some logic..
+
+        this.status = 'Active';
+        this.updatedAt = Date.now();
+
+        let o = {
+            ref: this.ref,
+            user: this.user.name,
+            updatedAt: this.updatedAt,
+            status: this.status,
+            items: this.items,
+            shipping: this.shipping,
+            total: this.total,
+        }
+
+        return o;
+    }
+
+```
+
+order.test.js
+
+```
+it("should update the status to 'Active' and return order details", () =>{
+        let result = o.save();
+
+        expect(dateSpy).to.have.been.calledThrice;  // thrice because, it is already called twice in constructor
+        expect(o.status).to.equal("Active");
+        expect(result).to.be.a("object");
+        expect(result).to.have.property("user").to.equal("foo");
+        expect(result).to.have.property("updatedAt").to.be.a("Number")
+
+        // check rest of the props
+})
+
+```
+
+Eg3 - Testing cancel() function
+
+order.js
+
+```
+cancel() {
+        //...some logic...
+
+        this.status = 'Cancelled';
+        this.updatedAt = Date.now();
+        this.shipping = 0;
+        this.total = 0;
+
+        console.warn('Order cancelled');
+
+        return true;
+    }
+
+```
+
+order.test.js
+
+```
+it("should cancel an order, updated status and set shipping and total to zero", () => {
+        let result = o.cancel();
+        
+        expect(warnStub).to.have.been.calledWith("Order cancelled");
+        expect(dateSpy).to.have.been.calledThrice;
+        expect(o.status).to.equal("Cancelled");  
+        expect(result).to.be.true;
+        expect(o.shipping).to.equal(0);
+        expect(o.total).to.equal(0);
+})
+
+```
+
+Eg4 - Prototype Method
+
+order.js
+```
+Order.prototype.ship = function () {
+    this.status = 'Shipped';
+    this.updatedAt = Date.now();
+}
+
+```
+
+order.test.js
+
+```
+it("should update status to shipped 'prototyope method'", () => {
+        o.ship();
+
+        expect(o.status).is.equal("Shipped");
+        expect(dateSpy).to.have.been.calledThrice;
+});
+
+```
+--> So now we know to how to unit testing for class works, so if anybody changes class, unit testing will fail and we know before hand.
+
+
+### O. Test Covergae with Istanbul / NYC
+
+i. npm i nyc --save-dev
+
+ii. Now to track all the test in the app, ration it is tested or pending tests can be done with nyc
+
+Open your package.json file - Add coverage command
+
+```
+"scripts": {
+    "test": "cross-env NODE_ENV=development mocha \"./{,!(node_modules)/**/}*.test.js\" --exit",
+    "test2": "mocha \"./tests/**/*.js\" --recursive",
+    "coverage": "cross-env NODE_ENV=development nyc --reporter=text npm test"
+  },
+```
+
+Run - npm run coverage
+
+iii. in test command we have skipped node_modules directory
